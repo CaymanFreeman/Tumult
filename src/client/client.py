@@ -1,6 +1,7 @@
 import socket
+import threading
 
-from src.server.server import Request, TumultProtocol
+from src.protocol.protocol import TumultProtocol
 
 
 class Client:
@@ -9,41 +10,48 @@ class Client:
     def client_host_address() -> str:
         return socket.gethostbyname(socket.gethostname())
 
-    @staticmethod
-    def pad_for_header(header_contents: bytes):
-        return header_contents + (
-            b" " * (TumultProtocol.header_length_bytes - len(header_contents))
-        )
-
-    # Send header describing what the incoming request will be
-    def send_request_header(self, request_type: int):
-        header_contents = str(request_type).encode(TumultProtocol.encoding_format)
-        self.socket.send(self.pad_for_header(header_contents))
-
     def __init__(
         self,
         server_address: str = client_host_address(),
         port: int = TumultProtocol.port,
     ):
-        self.socket_address = server_address, port
-        self.socket = socket.socket(
+        self.server_socket_address = server_address, port
+        self.server_connection = socket.socket(
             type=TumultProtocol.transport_type,
             family=TumultProtocol.address_family,
         )
 
     def connect(self):
-        self.socket.connect(self.socket_address)
-
-    # Send header before the message that describes the length of the message
-    def send_message_header(self, message_length: int):
-        header_contents = str(message_length).encode(TumultProtocol.encoding_format)
-        self.socket.send(self.pad_for_header(header_contents))
+        self.server_connection.connect(self.server_socket_address)
+        server_thread = threading.Thread(target=self.handle_server_requests)
+        server_thread.start()
 
     def send_message(self, message: str):
-        self.send_request_header(Request.MESSAGE.value)
-        message = message.encode(TumultProtocol.encoding_format)
-        self.send_message_header(len(message))
-        self.socket.send(message)
+        TumultProtocol.send_message(self.server_connection, message)
 
     def send_disconnect(self):
-        self.send_request_header(Request.DISCONNECT.value)
+        TumultProtocol.send_request_header(
+            self.server_connection, TumultProtocol.Request.DISCONNECT
+        )
+
+    def handle_server_requests(self):
+        handling_requests = True
+        while handling_requests:
+            try:
+                request = TumultProtocol.handle_incoming_request(self.server_connection)
+
+                if not request:
+                    continue
+
+                if int(request) == TumultProtocol.Request.MESSAGE.value:
+                    message_length, message = TumultProtocol.handle_incoming_message(
+                        self.server_connection
+                    )
+                    if not message_length or not message:
+                        continue
+                    print(
+                        f"Received message from server: '{message}' ({message_length} bytes)"
+                    )
+            except Exception as e:
+                print(e)
+                break

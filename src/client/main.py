@@ -6,7 +6,7 @@ def main():
     client.connect()
 
     while True:
-        user_input = input("Enter message: ")
+        user_input = input()
         if user_input == "/dc" or user_input == "/disconnect":
             client.send_disconnect()
             break
