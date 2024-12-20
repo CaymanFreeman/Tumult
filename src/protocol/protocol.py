@@ -7,29 +7,29 @@ from enum import Enum
 class TumultProtocol:
     transport_type = socket.SOCK_STREAM  # TCP Stream
     address_family = socket.AF_INET  # IPV4
-    port: int = 65535
+    default_port: int = 65535
     header_length_bytes: int = 4
     encoding_format: str = "utf-8"
-
-    @staticmethod
-    def pad(header_contents: bytes):
-        return header_contents + (
-            b" " * (TumultProtocol.header_length_bytes - len(header_contents))
-        )
 
     class Request(Enum):
         DISCONNECT: int = 0
         MESSAGE: int = 1
 
     @staticmethod
+    def header_pad(header_contents: bytes):
+        return header_contents + (
+            b" " * (TumultProtocol.header_length_bytes - len(header_contents))
+        )
+
+    @staticmethod
     def send_request_header(connection: socket, request_type: Request):
         header_contents = str(request_type.value).encode(TumultProtocol.encoding_format)
-        connection.send(TumultProtocol.pad(header_contents))
+        connection.send(TumultProtocol.header_pad(header_contents))
 
     @staticmethod
     def send_message_header(connection: socket, message_length: int):
         header_contents = str(message_length).encode(TumultProtocol.encoding_format)
-        connection.send(TumultProtocol.pad(header_contents))
+        connection.send(TumultProtocol.header_pad(header_contents))
 
     @staticmethod
     def send_message(connection: socket, message: str):

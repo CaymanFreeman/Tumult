@@ -12,7 +12,9 @@ class Server:
         return socket.gethostbyname(socket.gethostname())
 
     def __init__(
-        self, address: str = server_host_address(), port: str = TumultProtocol.port
+        self,
+        address: str = server_host_address(),
+        port: str = TumultProtocol.default_port,
     ):
         self.socket_address = address, port
         self.socket = socket.socket(
@@ -20,7 +22,7 @@ class Server:
             family=TumultProtocol.address_family,
         )
         self.socket.bind(self.socket_address)
-        self.clients: list[Tuple[socket, Tuple[str, int]]] = []
+        self.clients = []
 
     @property
     def client_connections(self) -> list[socket]:
@@ -40,12 +42,12 @@ class Server:
     def client_socket_address_strs(self) -> list[str]:
         client_socket_address_strs = []
         for client_socket_address in self.client_socket_addresses:
-            client_socket_address_strs.append(
-                f"{client_socket_address[0]}:{client_socket_address[1]}"
-            )
+            client_ip_address, client_port = client_socket_address
+            client_socket_address_strs.append(f"{client_ip_address}:{client_port}")
         return client_socket_address_strs
 
     def start(self):
+
         print(f"Starting server at {self.socket_address[0]}:{self.socket_address[1]}")
         self.socket.listen()
         self.handle_client_connections()
@@ -57,11 +59,20 @@ class Server:
         for client_connection in self.client_connections:
             TumultProtocol.send_message(client_connection, message)
 
+    def disconnect_client(self, client: Tuple[socket, Tuple[str, int]]):
+        client_connection, client_socket_address = client
+        client_ip_address, client_port = client_socket_address
+        client_connection.close()
+        self.clients.remove(client)
+        print(f"Client {client_ip_address}:{client_port} disconnected")
+
     def handle_client_requests(
-        self, client_connection: socket, address: Tuple[str, int]
+        self, client_connection: socket, client_socket_address: Tuple[str, int]
     ):
-        self.clients.append((client_connection, address))
-        print(f"Client connected from {address[0]}:{address[1]}")
+        client = client_connection, client_socket_address
+        client_ip_address, client_port = client_socket_address
+        self.clients.append(client)
+        print(f"Client connected from {client_ip_address}:{client_port}")
         handling_requests = True
         while handling_requests:
             try:
@@ -73,9 +84,10 @@ class Server:
                 match int(request):
                     case TumultProtocol.Request.DISCONNECT.value:
                         print(
-                            f"Received disconnect request from client {address[0]}:{address[1]}"
+                            f"Received disconnect request from client {client_ip_address}:{client_port}"
                         )
-                        break
+                        self.disconnect_client(client)
+                        return
                     case TumultProtocol.Request.MESSAGE.value:
                         message_length, message = (
                             TumultProtocol.handle_incoming_message(client_connection)
@@ -83,13 +95,12 @@ class Server:
                         if not message_length or not message:
                             continue
                         print(
-                            f"Received message from client {address[0]}:{address[1]}: '{message}' ({message_length} bytes)"
+                            f"Received message from client {client_ip_address}:{client_port}: '{message}' ({message_length} bytes)"
                         )
-                        self.broadcast_message(f"{address[0]} | {message}")
-            except Exception as e:
-                print(e)
-                break
-        client_connection.close()
+                        self.broadcast_message(f"{client_ip_address} | {message}")
+            except ConnectionError:
+                self.disconnect_client(client)
+                return
 
     def handle_client_connections(self):
         handling_connections = True
