@@ -2,7 +2,7 @@ import socket
 import threading
 from typing import Tuple
 
-from src.protocol.protocol import TumultProtocol
+from src.protocol import TumultProtocol
 
 
 class Server:
@@ -17,90 +17,98 @@ class Server:
         port: str = TumultProtocol.default_port,
     ):
         self.socket_address = address, port
-        self.socket = socket.socket(
-            type=TumultProtocol.transport_type,
-            family=TumultProtocol.address_family,
-        )
+        self.socket = TumultProtocol.socket()
         self.socket.bind(self.socket_address)
-        self.clients = []
-
-    @property
-    def client_connections(self) -> list[socket]:
-        client_connections = []
-        for client in self.clients:
-            client_connections.append(client[0])
-        return client_connections
-
-    @property
-    def client_socket_addresses(self) -> list[Tuple[str, int]]:
-        client_socket_addresses = []
-        for client in self.clients:
-            client_socket_addresses.append(client[1])
-        return client_socket_addresses
-
-    @property
-    def client_socket_address_strs(self) -> list[str]:
-        client_socket_address_strs = []
-        for client_socket_address in self.client_socket_addresses:
-            client_ip_address, client_port = client_socket_address
-            client_socket_address_strs.append(f"{client_ip_address}:{client_port}")
-        return client_socket_address_strs
+        self.client_connections = []
+        self.nicknames = {}
 
     def start(self):
-
         print(f"Starting server at {self.socket_address[0]}:{self.socket_address[1]}")
         self.socket.listen()
         self.handle_client_connections()
 
     def broadcast_message(self, message: str):
-        print(
-            f"Sending message '{message}' ({len(message.encode(TumultProtocol.encoding_format))} bytes) to clients {self.client_socket_address_strs}"
-        )
+        print(f"Sending message '{message}' to {list(self.nicknames.values())}")
         for client_connection in self.client_connections:
-            TumultProtocol.send_message(client_connection, message)
+            TumultProtocol.send_string(
+                client_connection, TumultProtocol.Request.MESSAGE, message
+            )
 
     def disconnect_client(self, client: Tuple[socket, Tuple[str, int]]):
         client_connection, client_socket_address = client
-        client_ip_address, client_port = client_socket_address
+        self.client_connections.remove(client_connection)
+        if client_socket_address in self.nicknames.keys():
+            del self.nicknames[client_socket_address]
         client_connection.close()
-        self.clients.remove(client)
-        print(f"Client {client_ip_address}:{client_port} disconnected")
 
     def handle_client_requests(
         self, client_connection: socket, client_socket_address: Tuple[str, int]
     ):
         client = client_connection, client_socket_address
         client_ip_address, client_port = client_socket_address
-        self.clients.append(client)
+        self.client_connections.append(client_connection)
         print(f"Client connected from {client_ip_address}:{client_port}")
         handling_requests = True
         while handling_requests:
             try:
                 request = TumultProtocol.handle_incoming_request(client_connection)
-
                 if not request:
                     continue
 
-                match int(request):
-                    case TumultProtocol.Request.DISCONNECT.value:
-                        print(
-                            f"Received disconnect request from client {client_ip_address}:{client_port}"
+                match request:
+                    case TumultProtocol.Request.NICKNAME:
+                        nickname = TumultProtocol.handle_incoming_string(
+                            client_connection
                         )
-                        self.disconnect_client(client)
-                        return
-                    case TumultProtocol.Request.MESSAGE.value:
-                        message_length, message = (
-                            TumultProtocol.handle_incoming_message(client_connection)
-                        )
-                        if not message_length or not message:
+                        if not nickname:
                             continue
+
                         print(
-                            f"Received message from client {client_ip_address}:{client_port}: '{message}' ({message_length} bytes)"
+                            f"Received nickname request of '{nickname}' from client {client_ip_address}:{client_port}"
                         )
-                        self.broadcast_message(f"{client_ip_address} | {message}")
-            except ConnectionError:
-                self.disconnect_client(client)
-                return
+                        self.nicknames[client_socket_address] = nickname
+                    case TumultProtocol.Request.MESSAGE:
+                        message = TumultProtocol.handle_incoming_string(
+                            client_connection
+                        )
+                        if not message:
+                            continue
+
+                        print(
+                            f"Received message from client {client_ip_address}:{client_port}: {message}"
+                        )
+                        if client_socket_address not in self.nicknames.keys():
+                            nickname = "User" + str(
+                                self.client_connections.index(client_connection) + 1
+                            )
+                            print(
+                                f"Giving default nickname {nickname} to client {client_ip_address}:{client_port}"
+                            )
+                            self.nicknames[client_socket_address] = nickname
+                        self.broadcast_message(
+                            f"[{self.nicknames[client_socket_address]}] {message}"
+                        )
+            except TimeoutError as error:
+                print(
+                    f"Connection with client {client_ip_address}:{client_port} timed out: {error}"
+                )
+                handling_requests = False
+            except ConnectionResetError:
+                print(
+                    f"Connection with client {client_ip_address}:{client_port} was forcibly closed by them"
+                )
+                handling_requests = False
+            except ConnectionAbortedError as error:
+                print(
+                    f"Connection with client {client_ip_address}:{client_port} was aborted: {error}"
+                )
+                handling_requests = False
+            except ConnectionError as error:
+                print(
+                    f"Connection with client {client_ip_address}:{client_port} experienced an error: {error}"
+                )
+                handling_requests = False
+        self.disconnect_client(client)
 
     def handle_client_connections(self):
         handling_connections = True
