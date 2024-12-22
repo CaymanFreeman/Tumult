@@ -1,5 +1,6 @@
 import socket
 import threading
+from typing import Optional, Tuple
 
 from PyQt6.QtCore import pyqtSignal, QObject
 
@@ -16,8 +17,8 @@ class Client(QObject):
 
     def __init__(self):
         super().__init__()
-        self.server_socket_address = None
-        self.server_connection = TumultProtocol.socket()
+        self.server_socket_address: Optional[Tuple[str, int]] = None
+        self.server_connection: socket = TumultProtocol.socket()
 
     def connect(self) -> bool:
         server_address, server_port = self.server_socket_address

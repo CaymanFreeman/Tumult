@@ -130,7 +130,6 @@ class ClientWindow(QMainWindow):
                 entered_nickname = bool(self.nickname_input.text())
                 if entered_nickname:
                     self.client.send_nickname(self.nickname_input.text())
-
                 self.central_stack.setCurrentIndex(self.chat_page_index)
 
     def on_leave_button_clicked(self):

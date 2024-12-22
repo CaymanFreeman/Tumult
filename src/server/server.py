@@ -21,15 +21,25 @@ class Server:
         self.socket.bind(self.socket_address)
         self.client_connections = []
         self.nicknames = {}
+        self.message_history = []
 
     def start(self):
-        print(f"Starting server at {self.socket_address[0]}:{self.socket_address[1]}")
+        address, port = self.socket_address
+        print(f"Starting server at {address}:{port}")
         self.socket.listen()
         self.handle_client_connections()
 
     def broadcast_message(self, message: str):
+        self.message_history.append(message)
         print(f"Sending message '{message}' to {list(self.nicknames.values())}")
         for client_connection in self.client_connections:
+            TumultProtocol.send_string(
+                client_connection, TumultProtocol.Request.MESSAGE, message
+            )
+
+    def send_message_history(self, client: Tuple[socket, Tuple[str, int]]):
+        client_connection, _ = client
+        for message in self.message_history:
             TumultProtocol.send_string(
                 client_connection, TumultProtocol.Request.MESSAGE, message
             )
@@ -41,6 +51,19 @@ class Server:
             del self.nicknames[client_socket_address]
         client_connection.close()
 
+    def get_nickname(self, client: Tuple[socket, Tuple[str, int]]) -> str:
+        client_connection, client_socket_address = client
+        client_ip_address, client_port = client_socket_address
+        if client_socket_address not in self.nicknames.keys():
+            nickname = "User" + str(
+                self.client_connections.index(client_connection) + 1
+            )
+            print(
+                f"Giving default nickname {nickname} to client {client_ip_address}:{client_port}"
+            )
+            self.nicknames[client_socket_address] = nickname
+        return self.nicknames[client_socket_address]
+
     def handle_client_requests(
         self, client_connection: socket, client_socket_address: Tuple[str, int]
     ):
@@ -48,6 +71,14 @@ class Server:
         client_ip_address, client_port = client_socket_address
         self.client_connections.append(client_connection)
         print(f"Client connected from {client_ip_address}:{client_port}")
+        if self.message_history:
+            print(
+                f"Sending message history to client {client_ip_address}:{client_port}"
+            )
+            self.send_message_history(client)
+            print(
+                f"Finished sending messages to client {client_ip_address}:{client_port}"
+            )
         handling_requests = True
         while handling_requests:
             try:
@@ -77,16 +108,8 @@ class Server:
                         print(
                             f"Received message from client {client_ip_address}:{client_port}: {message}"
                         )
-                        if client_socket_address not in self.nicknames.keys():
-                            nickname = "User" + str(
-                                self.client_connections.index(client_connection) + 1
-                            )
-                            print(
-                                f"Giving default nickname {nickname} to client {client_ip_address}:{client_port}"
-                            )
-                            self.nicknames[client_socket_address] = nickname
                         self.broadcast_message(
-                            f"[{self.nicknames[client_socket_address]}] {message}"
+                            f"[{self.get_nickname(client)}] {message}"
                         )
             except TimeoutError as error:
                 print(
