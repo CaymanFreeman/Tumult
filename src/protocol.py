@@ -1,77 +1,113 @@
+import json
 import socket
+import time
+from collections import namedtuple
 from dataclasses import dataclass
-from enum import Enum
-from typing import Optional
+from enum import IntEnum
+from typing import Optional, Self
+
+VERSION: str = "0.1.0"
+DEFAULT_PORT: int = 65535
+ENCODING_FORMAT: str = "utf-8"
+
+
+class RequestType(IntEnum):
+    MESSAGE = 1
+    JOIN_MESSAGE = 2
+    LEAVE_MESSAGE = 3
+    NICKNAME = 4
 
 
 @dataclass
-class TumultProtocol:
-    transport_type = socket.SOCK_STREAM  # TCP Stream
-    address_family = socket.AF_INET  # IPV4
-    default_port: int = 65535
-    header_length_bytes: int = 3
-    max_encoded_chars: int = ((10**header_length_bytes) - 1) // 4
-    encoding_format: str = "utf-8"
+class TumultHeader:
+    request_type: RequestType
+    version: str = VERSION
+    timestamp: Optional[float] = time.time()
+    nickname: Optional[str] = None
+    content_length: int = 0
 
-    class Request(Enum):
-        NICKNAME: int = 0
-        MESSAGE: int = 1
+    def to_bytes(self) -> bytes:
+        header = json.dumps(
+            {
+                "version": self.version,
+                "timestamp": self.timestamp,
+                "request_type": int(self.request_type),
+                "nickname": self.nickname,
+                "content_length": self.content_length,
+            }
+        )
+        return f"{header}\r\n".encode(ENCODING_FORMAT)
 
-        @classmethod
-        def from_int(cls, value: int):
-            for item in cls:
-                if item.value == value:
-                    return item
-            raise ValueError(f"No matching request for value: {value}")
-
-    @staticmethod
-    def socket() -> socket.socket:
-        return socket.socket(
-            type=TumultProtocol.transport_type,
-            family=TumultProtocol.address_family,
+    @classmethod
+    def from_bytes(cls, header_bytes: bytes) -> Self:
+        header = json.loads(header_bytes.decode(ENCODING_FORMAT).strip())
+        return cls(
+            version=header["version"],
+            timestamp=header["timestamp"],
+            request_type=RequestType(header["request_type"]),
+            nickname=header["nickname"],
+            content_length=header["content_length"],
         )
 
-    @staticmethod
-    def header_pad(header_contents: bytes):
-        return header_contents + (
-            b" " * (TumultProtocol.header_length_bytes - len(header_contents))
+
+class TumultSocket(socket.socket):
+
+    Request = namedtuple("Request", ["header", "contents"])
+
+    def __init__(self):
+        super().__init__(type=socket.SOCK_STREAM, family=socket.AF_INET)
+
+    @classmethod
+    def from_socket(cls, python_socket: socket.socket) -> Self:
+        tumult_socket = cls.__new__(cls)
+        super(cls, tumult_socket).__init__(
+            family=python_socket.family,
+            type=python_socket.type,
+            proto=python_socket.proto,
+            fileno=python_socket.fileno(),
         )
+        return tumult_socket
 
-    @staticmethod
-    def send_request_header(connection: socket, request_type: Request):
-        header_contents = str(request_type.value).encode(TumultProtocol.encoding_format)
-        connection.send(TumultProtocol.header_pad(header_contents))
+    def write_message(
+        self,
+        nickname: str,
+        message: str,
+        request_type: RequestType = RequestType.MESSAGE,
+    ):
+        message_bytes = message.encode(ENCODING_FORMAT)
+        header_bytes = TumultHeader(
+            request_type=request_type,
+            nickname=nickname,
+            content_length=len(message_bytes),
+        ).to_bytes()
+        self.send(header_bytes + message_bytes)
 
-    @staticmethod
-    def send_string_length_header(connection: socket, string_length: int):
-        header_contents = str(string_length).encode(TumultProtocol.encoding_format)
-        connection.send(TumultProtocol.header_pad(header_contents))
+    def write_join_message(self, nickname: str, message: str):
+        self.write_message(nickname, message, RequestType.JOIN_MESSAGE)
 
-    @staticmethod
-    def send_string(connection: socket, request_type: Request, string: str):
-        TumultProtocol.send_request_header(connection, request_type)
-        string = string.encode(TumultProtocol.encoding_format)
-        TumultProtocol.send_string_length_header(connection, len(string))
-        connection.send(string)
+    def write_leave_message(self, nickname: str, message: str):
+        self.write_message(nickname, message, RequestType.LEAVE_MESSAGE)
 
-    @staticmethod
-    def handle_incoming_string(connection: socket) -> Optional[str]:
-        header_contents = connection.recv(TumultProtocol.header_length_bytes).decode(
-            TumultProtocol.encoding_format
+    def write_nickname(self, nickname: str):
+        header_bytes = TumultHeader(
+            request_type=RequestType.NICKNAME,
+            nickname=nickname,
+        ).to_bytes()
+        self.send(header_bytes)
+
+    def read_request(self) -> Request:
+        header_bytes = b""
+        reading_bytes = True
+        while reading_bytes:
+            byte = self.recv(1)
+            if not byte:
+                raise ConnectionError
+            header_bytes += byte
+            if header_bytes.endswith(b"\r\n"):
+                reading_bytes = False
+
+        header = TumultHeader.from_bytes(header_bytes)
+        contents = (
+            self.recv(header.content_length) if header.content_length > 0 else b""
         )
-        if not header_contents:
-            return None
-
-        string_length = int(header_contents)
-        string = connection.recv(string_length).decode(TumultProtocol.encoding_format)
-        return string
-
-    @staticmethod
-    def handle_incoming_request(connection: socket) -> Request:
-        return TumultProtocol.Request.from_int(
-            int(
-                connection.recv(TumultProtocol.header_length_bytes).decode(
-                    TumultProtocol.encoding_format
-                )
-            )
-        )
+        return TumultSocket.Request(header, contents)

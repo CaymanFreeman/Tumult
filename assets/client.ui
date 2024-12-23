@@ -18,7 +18,7 @@
     <item>
      <widget class="QStackedWidget" name="central_stack">
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="chat_page">
        <layout class="QVBoxLayout" name="chat_page_layout">
@@ -47,6 +47,9 @@
          <layout class="QHBoxLayout" name="message_box_layout">
           <item>
            <widget class="QLineEdit" name="message_box_input">
+            <property name="maxLength">
+             <number>1000</number>
+            </property>
             <property name="clearButtonEnabled">
              <bool>false</bool>
             </property>

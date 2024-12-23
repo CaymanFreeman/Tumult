@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional
 
 from PyQt6 import uic
+from PyQt6.QtCore import pyqtSlot
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QMainWindow,
@@ -14,8 +15,8 @@ from PyQt6.QtWidgets import (
     QLabel,
 )
 
-from src.client.client import Client
-from src.protocol import TumultProtocol
+from src.client.client import TumultClient
+from src.protocol import DEFAULT_PORT
 
 
 class ClientWindow(QMainWindow):
@@ -31,8 +32,8 @@ class ClientWindow(QMainWindow):
     ICON_PATH: str = str(Path("assets").joinpath("icon.png"))
 
     @classmethod
-    def validate_socket_address(cls, address: str, port: int) -> bool:
-        if not bool(re.match(cls.IPV4_PATTERN, address)):
+    def validate_socket_address(cls, ipv4_address: str, port: int) -> bool:
+        if not bool(re.match(cls.IPV4_PATTERN, ipv4_address)):
             return False
         if not bool(re.match(cls.PORT_PATTERN, str(port))):
             return False
@@ -41,7 +42,7 @@ class ClientWindow(QMainWindow):
 
     def __init__(self):
         super(ClientWindow, self).__init__()
-        self.client = Client()
+        self.client = TumultClient()
 
         self.setWindowIcon(QIcon(self.ICON_PATH))
         uic.loadUi(self.UI_PATH, self)
@@ -65,13 +66,10 @@ class ClientWindow(QMainWindow):
         self.define_page_indices()
 
         self.central_stack.setCurrentIndex(self.connect_page_index)
-        self.message_box_input.setMaxLength(
-            TumultProtocol.max_encoded_chars
-            - ((self.nickname_input.maxLength() * 4) + 2)
-        )
 
         self.connect_callbacks()
 
+        self.adjustSize()
         self.show()
 
     def define_page_indices(self):
@@ -94,7 +92,7 @@ class ClientWindow(QMainWindow):
         self.server_name_label = self.findChild(QLabel, "server_name_label")
 
     def closeEvent(self, event):
-        self.client.close_socket()
+        self.client.leave_server()
 
     def connect_callbacks(self):
         self.connect_button.clicked.connect(self.on_connect_button_clicked)
@@ -103,15 +101,19 @@ class ClientWindow(QMainWindow):
         self.leave_button.clicked.connect(self.on_leave_button_clicked)
         self.central_stack.currentChanged.connect(self.adjustSize)
         self.client.message_received.connect(self.on_message_received)
+        self.client.join_message_received.connect(self.on_join_message_received)
+        self.client.leave_message_received.connect(self.on_leave_message_received)
+        self.client.disconnected.connect(self.on_disconnected)
 
     def on_connect_button_clicked(self):
-        if self.client.server_socket_address:
+        if self.client.server_ipv4_address and self.client.server_port:
             return
 
         entered_server_address = bool(self.server_address_input.text())
         entered_server_port = bool(self.server_address_input.text())
+        entered_nickname = bool(self.nickname_input.text())
 
-        server_address = (
+        server_ipv4_address = (
             self.server_address_input.text()
             if entered_server_address
             else self.client.client_host_address()
@@ -119,22 +121,21 @@ class ClientWindow(QMainWindow):
         server_port = (
             int(self.server_address_input.text())
             if entered_server_port
-            else TumultProtocol.default_port
+            else DEFAULT_PORT
         )
+        nickname = self.nickname_input.text() if entered_nickname else None
 
-        if self.validate_socket_address(server_address, server_port):
-            self.client.server_socket_address = server_address, server_port
-            connection_success = self.client.connect()
+        if self.validate_socket_address(server_ipv4_address, server_port):
+            connection_success = self.client.connect(
+                server_ipv4_address, server_port, nickname
+            )
             if connection_success:
-                self.server_name_label.setText(f"{server_address}:{server_port}")
-                entered_nickname = bool(self.nickname_input.text())
-                if entered_nickname:
-                    self.client.send_nickname(self.nickname_input.text())
+                self.server_name_label.setText(f"{server_ipv4_address}:{server_port}")
                 self.central_stack.setCurrentIndex(self.chat_page_index)
 
     def on_leave_button_clicked(self):
         self.central_stack.setCurrentIndex(self.connect_page_index)
-        self.client.close_socket()
+        self.client.leave_server()
 
     def on_send_message(self):
         message = self.message_box_input.text()
@@ -142,5 +143,18 @@ class ClientWindow(QMainWindow):
             self.client.send_message(message)
         self.message_box_input.clear()
 
-    def on_message_received(self, message: str):
-        self.chat_box.append(message)
+    @pyqtSlot(str, str)
+    def on_message_received(self, nickname: str, message: str):
+        self.chat_box.append(f"<strong>{nickname}</strong> {message}")
+
+    @pyqtSlot(str, str)
+    def on_join_message_received(self, nickname: str, message: str):
+        self.chat_box.append(f"<em>{nickname} {message}</em>")
+
+    @pyqtSlot(str, str)
+    def on_leave_message_received(self, nickname: str, message: str):
+        self.chat_box.append(f"<em>{nickname} {message}</em>")
+
+    @pyqtSlot()
+    def on_disconnected(self):
+        self.central_stack.setCurrentIndex(self.connect_page_index)
