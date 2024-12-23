@@ -22,11 +22,3 @@
   <a href="https://github.com/CaymanFreeman/Tumult/releases"><img alt="Release" src="https://img.shields.io/github/v/release/CaymanFreeman/Tumult?include_prereleases&display_name=release&style=flat&color=%239d69c3"></a>&nbsp;
   <a href="https://www.linkedin.com/in/caymanfreeman/"><img alt="linkedin" src="https://img.shields.io/badge/linkedin-Connect_with_me-%230072b1?style=flat"></a>
 </p>
-
-## Download
-
-You can find appropriate downloads for each release [here](https://github.com/CaymanFreeman/Tumult/releases).
-
-**Windows:** An executable and installer are available to download with each release.
-
-**Linux:** A binary is included in each release.
