@@ -1,6 +1,7 @@
+import os
 import re
+import sys
 from pathlib import Path
-from typing import Optional
 
 from PyQt6 import uic
 from PyQt6.QtCore import pyqtSlot
@@ -28,9 +29,6 @@ class ClientWindow(QMainWindow):
         r"^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$"
     )
 
-    UI_PATH: str = str(Path("assets").joinpath("client.ui"))
-    ICON_PATH: str = str(Path("assets").joinpath("icon.png"))
-
     @classmethod
     def validate_socket_address(cls, ipv4_address: str, port: int) -> bool:
         if not bool(re.match(cls.IPV4_PATTERN, ipv4_address)):
@@ -44,43 +42,15 @@ class ClientWindow(QMainWindow):
         super(ClientWindow, self).__init__()
         self.client = TumultClient()
 
-        self.setWindowIcon(QIcon(self.ICON_PATH))
-        uic.loadUi(self.UI_PATH, self)
+        self.set_icon()
+        self.load_ui()
 
-        self.connect_page: Optional[QWidget] = None
-        self.chat_page: Optional[QWidget] = None
-        self.connect_page_index: Optional[int] = None
-        self.chat_page_index: Optional[int] = None
-        self.central_stack: Optional[QStackedWidget] = None
-        self.form_container: Optional[QWidget] = None
-        self.nickname_input: Optional[QLineEdit] = None
-        self.server_address_input: Optional[QLineEdit] = None
-        self.server_port_input: Optional[QLineEdit] = None
-        self.connect_button: Optional[QPushButton] = None
-        self.message_box_input: Optional[QLineEdit] = None
-        self.send_button: Optional[QPushButton] = None
-        self.leave_button: Optional[QPushButton] = None
-        self.chat_box: Optional[QTextBrowser] = None
-        self.server_name_label: Optional[QLabel] = None
-        self.define_widgets()
-        self.define_page_indices()
-
-        self.central_stack.setCurrentIndex(self.connect_page_index)
-
-        self.connect_callbacks()
-
-        self.adjustSize()
-        self.show()
-
-    def define_page_indices(self):
-        self.connect_page_index = self.central_stack.indexOf(self.connect_page)
-        self.chat_page_index = self.central_stack.indexOf(self.chat_page)
-
-    def define_widgets(self):
         self.form_container = self.findChild(QWidget, "form_container")
         self.connect_page = self.findChild(QWidget, "connect_page")
         self.chat_page = self.findChild(QWidget, "chat_page")
         self.central_stack = self.findChild(QStackedWidget, "central_stack")
+        self.connect_page_index = self.central_stack.indexOf(self.connect_page)
+        self.chat_page_index = self.central_stack.indexOf(self.chat_page)
         self.nickname_input = self.findChild(QLineEdit, "nickname_input")
         self.server_address_input = self.findChild(QLineEdit, "server_address_input")
         self.server_port_input = self.findChild(QLineEdit, "server_port_input")
@@ -90,6 +60,53 @@ class ClientWindow(QMainWindow):
         self.leave_button = self.findChild(QPushButton, "leave_button")
         self.chat_box = self.findChild(QTextBrowser, "chat_box")
         self.server_name_label = self.findChild(QLabel, "server_name_label")
+        self.central_stack.setCurrentIndex(self.connect_page_index)
+
+        self.connect_callbacks()
+
+        self.adjustSize()
+        self.show()
+
+    def load_ui(self):
+        source_ui_path = (
+            Path(os.path.dirname(__file__))
+            .parent.joinpath("assets")
+            .joinpath("client_window.ui")
+        )
+
+        if source_ui_path.exists():
+            uic.loadUi(str(source_ui_path), self)
+            return
+
+        bundled_ui_path = (
+            Path(os.path.dirname(__file__)).joinpath("assets").joinpath("client_window.ui")
+        )
+
+        if bundled_ui_path.exists():
+            uic.loadUi(str(bundled_ui_path), self)
+            return
+
+    def set_icon(self):
+        if not sys.platform.startswith("win"):
+            return
+
+        source_icon_path = (
+            Path(os.path.dirname(__file__))
+            .parent.joinpath("assets")
+            .joinpath("icon.png")
+        )
+
+        if source_icon_path.exists():
+            self.setWindowIcon(QIcon(str(source_icon_path)))
+            return
+
+        bundled_icon_path = (
+            Path(os.path.dirname(__file__)).joinpath("assets").joinpath("icon.png")
+        )
+
+        if bundled_icon_path.exists():
+            self.setWindowIcon(QIcon(str(bundled_icon_path)))
+            return
 
     def closeEvent(self, event):
         self.client.leave_server()
