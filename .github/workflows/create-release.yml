@@ -77,11 +77,12 @@ jobs:
           tag_name: v${{ inputs.release_version }}
           body: |
             ### Build Environments
-            **${{ needs.pyinstaller-build.outputs.windows_installer_name }}:** ${{ needs.pyinstaller-build.outputs.windows_version }}
-            **${{ needs.pyinstaller-build.outputs.windows_build_name }}:** ${{ needs.pyinstaller-build.outputs.windows_version }}
-            **${{ needs.pyinstaller-build.outputs.windows_server_build_name }}:** ${{ needs.pyinstaller-build.outputs.windows_version }}
+            
             **${{ needs.pyinstaller-build.outputs.ubuntu_build_name }}:** ${{ needs.pyinstaller-build.outputs.ubuntu_version }}
+            **${{ needs.pyinstaller-build.outputs.windows_build_name }}:** ${{ needs.pyinstaller-build.outputs.windows_version }}
+            **${{ needs.pyinstaller-build.outputs.windows_installer_name }}:** ${{ needs.pyinstaller-build.outputs.windows_version }}
             **${{ needs.pyinstaller-build.outputs.ubuntu_server_build_name }}:** ${{ needs.pyinstaller-build.outputs.ubuntu_version }}
+            **${{ needs.pyinstaller-build.outputs.windows_server_build_name }}:** ${{ needs.pyinstaller-build.outputs.windows_version }}
             
             ### Changes
             

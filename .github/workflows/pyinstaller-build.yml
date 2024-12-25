@@ -68,7 +68,7 @@ jobs:
           pip install pyinstaller
 
       - name: PyInstaller Client Build
-        run: pyinstaller --noconfirm --onefile --name "${{ inputs.app_name_lower }}" --windowed --add-data="LICENSE.md:." --add-data="assets/window.ui:assets" src/client/main.py
+        run: pyinstaller --noconfirm --onefile --name "${{ inputs.app_name_lower }}" --windowed --add-data="LICENSE.md:." --add-data="assets/client_window.ui:assets" src/client/main.py
 
       - name: PyInstaller Server Build
         run: pyinstaller --noconfirm --onefile --name "${{ inputs.app_name_lower }}-server" --windowed --add-data="LICENSE.md:." src/server/main.py
@@ -94,7 +94,7 @@ jobs:
       - name: Upload Server Build
         uses: actions/upload-artifact@v4
         with:
-          name: ubuntu-build
+          name: ubuntu-server-build
           path: ${{ steps.zip.outputs.ubuntu_server_build_name }}
           if-no-files-found: error
           retention-days: 1
