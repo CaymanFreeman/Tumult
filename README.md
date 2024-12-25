@@ -23,7 +23,7 @@
   <a href="https://www.linkedin.com/in/caymanfreeman/"><img alt="linkedin" src="https://img.shields.io/badge/linkedin-Connect_with_me-%230072b1?style=flat"></a>
 </p>
 
-<h3 align="center">This project is currently in its beginnings and does not have any releases but does have basic functionality. As such, the information below may be incomplete/incorrect.</h3>
+<h3 align="center">This project is currently in its beginnings and only has basic functionality. As such, the information below may be incomplete/incorrect.</h3>
   
 <h3 align="center">In the meantime, check out my other project, <a href="https://github.com/CaymanFreeman/Clikr">Clikr</a>.</h3>
 
