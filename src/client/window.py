@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.client.client import TumultClient
-from src.protocol import DEFAULT_PORT, DEFAULT_IPV4_ADDRESS
+from src.shared.protocol import DEFAULT_PORT, DEFAULT_IPV4_ADDRESS
 
 # IPv4 Regex from Danail Gabenski
 # https://stackoverflow.com/questions/5284147/validating-ipv4-addresses-with-regexp

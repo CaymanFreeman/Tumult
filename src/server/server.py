@@ -2,7 +2,7 @@ import threading
 from dataclasses import dataclass
 from typing import Optional
 
-from src.protocol import (
+from src.shared.protocol import (
     TumultSocket,
     RequestType,
     ENCODING_FORMAT,

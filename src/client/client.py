@@ -1,10 +1,9 @@
-import socket
 import threading
 from typing import Optional
 
 from PyQt6.QtCore import pyqtSignal, QObject
 
-from src.protocol import TumultSocket, RequestType, ENCODING_FORMAT
+from src.shared.protocol import TumultSocket, RequestType, ENCODING_FORMAT
 
 
 class TumultClient(QObject):

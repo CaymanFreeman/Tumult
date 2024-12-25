@@ -1,4 +1,4 @@
-from server import TumultServer
+from src.server.server import TumultServer
 
 
 def main():
