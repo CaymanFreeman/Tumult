@@ -71,7 +71,7 @@ From this point, the client or server can be run from the source scripts with `p
 
 ### PyInstaller Client Bundle
 ```batch
-pyinstaller --noconfirm --onefile --name "Tumult" --windowed --add-data="LICENSE.md:." --icon="assets\icon.ico" --add-data="assets\icon.png:assets" --add-data="assets\window.ui:assets" src\client\main.py
+pyinstaller --noconfirm --onefile --name "Tumult" --windowed --add-data="LICENSE.md:." --icon="assets\icon.ico" --add-data="assets\icon.png:assets" --add-data="assets\client_window.ui:assets" src\client\main.py
 ```
 
 ### PyInstaller Server Bundle
@@ -114,7 +114,7 @@ From this point, the client or server can be run from the source scripts with `p
 
 ### PyInstaller Client Bundle
 ```bash
-pyinstaller --noconfirm --onefile --name "tumult" --windowed --add-data="LICENSE.md:." --add-data="assets/window.ui:assets" src/client/main.py
+pyinstaller --noconfirm --onefile --name "tumult" --windowed --add-data="LICENSE.md:." --add-data="assets/client_window.ui:assets" src/client/main.py
 ```
 
 ### PyInstaller Server Bundle
