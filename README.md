@@ -22,3 +22,8 @@
   <a href="https://github.com/CaymanFreeman/Tumult/releases"><img alt="Release" src="https://img.shields.io/github/v/release/CaymanFreeman/Tumult?include_prereleases&display_name=release&style=flat&color=%239d69c3"></a>&nbsp;
   <a href="https://www.linkedin.com/in/caymanfreeman/"><img alt="linkedin" src="https://img.shields.io/badge/linkedin-Connect_with_me-%230072b1?style=flat"></a>
 </p>
+
+<h3 align="center">
+  This project is currently in its beginnings and does not have any releases but does have basic functionality.
+  In the meantime, check out my auto clicker project, <a href="https://github.com/CaymanFreeman/Clikr">Clikr</a>.
+</h3>
