@@ -1,0 +1,99 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release Version"
+        required: true
+        type: string
+        default: "0.0.0"
+      pre-release:
+        description: "Pre-release"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  
+  get-app-name:
+    runs-on: ubuntu-latest
+    outputs:
+      app_name: ${{ steps.get-app-name.outputs.app_name }}
+      app_name_lower: ${{ steps.get-app-name.outputs.app_name_lower }}
+    steps:
+      - name: Get App Name
+        id: get-app-name
+        run: |
+          echo "app_name=$(basename ${{ github.repository }})" >> $GITHUB_OUTPUT
+          echo "app_name_lower=$(basename ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+  pyinstaller-build:
+    needs: get-app-name
+    uses: ./.github/workflows/pyinstaller-build.yml
+    with:
+      release_version: ${{ inputs.release_version }}
+      app_name: ${{ needs.get-app-name.outputs.app_name }}
+      app_name_lower: ${{ needs.get-app-name.outputs.app_name_lower }}
+
+  create-release:
+    needs: pyinstaller-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Ubuntu Client gZip
+        uses: actions/download-artifact@v4
+        with:
+          name: ubuntu-build
+
+      - name: Download Ubuntu Server gZip
+        uses: actions/download-artifact@v4
+        with:
+          name: ubuntu-server-build
+
+      - name: Download Windows Client Zip
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+
+      - name: Download Windows Client Installer
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+
+      - name: Download Windows Server Zip
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-server-build
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ inputs.release_version }}
+          tag_name: v${{ inputs.release_version }}
+          body: |
+            ### Build Environments
+            **${{ needs.pyinstaller-build.outputs.windows_installer_name }}:** ${{ needs.pyinstaller-build.outputs.windows_version }}
+            **${{ needs.pyinstaller-build.outputs.windows_build_name }}:** ${{ needs.pyinstaller-build.outputs.windows_version }}
+            **${{ needs.pyinstaller-build.outputs.windows_server_build_name }}:** ${{ needs.pyinstaller-build.outputs.windows_version }}
+            **${{ needs.pyinstaller-build.outputs.ubuntu_build_name }}:** ${{ needs.pyinstaller-build.outputs.ubuntu_version }}
+            **${{ needs.pyinstaller-build.outputs.ubuntu_server_build_name }}:** ${{ needs.pyinstaller-build.outputs.ubuntu_version }}
+            
+            ### Changes
+            
+            - Changed lorem ipsum
+          generate_release_notes: true
+          prerelease: ${{ inputs.pre-release }}
+          draft: true
+          files: |
+            ${{ needs.pyinstaller-build.outputs.windows_installer_name }}
+            ${{ needs.pyinstaller-build.outputs.windows_build_name }}
+            ${{ needs.pyinstaller-build.outputs.windows_server_build_name }}
+            ${{ needs.pyinstaller-build.outputs.ubuntu_build_name }}
+            ${{ needs.pyinstaller-build.outputs.ubuntu_server_build_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
