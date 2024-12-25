@@ -7,6 +7,7 @@ from enum import IntEnum
 from typing import Optional, Self
 
 VERSION: str = "0.1.0"
+DEFAULT_IPV4_ADDRESS: str = "127.0.0.1"
 DEFAULT_PORT: int = 65535
 ENCODING_FORMAT: str = "utf-8"
 
@@ -82,11 +83,17 @@ class TumultSocket(socket.socket):
         ).to_bytes()
         self.send(header_bytes + message_bytes)
 
-    def write_join_message(self, nickname: str, message: str):
-        self.write_message(nickname, message, RequestType.JOIN_MESSAGE)
+    def write_join_message(self, nickname: str):
+        header_bytes = TumultHeader(
+            request_type=RequestType.JOIN_MESSAGE, nickname=nickname
+        ).to_bytes()
+        self.send(header_bytes)
 
-    def write_leave_message(self, nickname: str, message: str):
-        self.write_message(nickname, message, RequestType.LEAVE_MESSAGE)
+    def write_leave_message(self, nickname: str):
+        header_bytes = TumultHeader(
+            request_type=RequestType.LEAVE_MESSAGE, nickname=nickname
+        ).to_bytes()
+        self.send(header_bytes)
 
     def write_nickname(self, nickname: str):
         header_bytes = TumultHeader(
@@ -111,3 +118,11 @@ class TumultSocket(socket.socket):
             self.recv(header.content_length) if header.content_length > 0 else b""
         )
         return TumultSocket.Request(header, contents)
+
+    def wait_for_request(self, request_type: RequestType) -> Request:
+        waiting_for_request = True
+        while waiting_for_request:
+            request = self.read_request()
+            if request and request.header:
+                if request.header.request_type == request_type:
+                    return request

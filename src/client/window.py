@@ -17,23 +17,25 @@ from PyQt6.QtWidgets import (
 )
 
 from src.client.client import TumultClient
-from src.protocol import DEFAULT_PORT
+from src.protocol import DEFAULT_PORT, DEFAULT_IPV4_ADDRESS
+
+# IPv4 Regex from Danail Gabenski
+# https://stackoverflow.com/questions/5284147/validating-ipv4-addresses-with-regexp
+IPV4_PATTERN: str = r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$"
+PORT_PATTERN: str = (
+    r"^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$"
+)
+
+JOIN_MESSAGE: str = "has joined the server"
+LEAVE_MESSAGE: str = "has left the server"
 
 
 class ClientWindow(QMainWindow):
-
-    # IPv4 Regex from Danail Gabenski
-    # https://stackoverflow.com/questions/5284147/validating-ipv4-addresses-with-regexp
-    IPV4_PATTERN: str = r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$"
-    PORT_PATTERN: str = (
-        r"^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$"
-    )
-
     @classmethod
     def validate_socket_address(cls, ipv4_address: str, port: int) -> bool:
-        if not bool(re.match(cls.IPV4_PATTERN, ipv4_address)):
+        if not bool(re.match(IPV4_PATTERN, ipv4_address)):
             return False
-        if not bool(re.match(cls.PORT_PATTERN, str(port))):
+        if not bool(re.match(PORT_PATTERN, str(port))):
             return False
 
         return True
@@ -66,11 +68,12 @@ class ClientWindow(QMainWindow):
 
         self.adjustSize()
         self.show()
+        print("[SYSTEM] Successfully loaded UI")
 
     def load_ui(self):
         source_ui_path = (
             Path(os.path.dirname(__file__))
-            .parent.joinpath("assets")
+            .parent.parent.joinpath("assets")
             .joinpath("client_window.ui")
         )
 
@@ -79,7 +82,9 @@ class ClientWindow(QMainWindow):
             return
 
         bundled_ui_path = (
-            Path(os.path.dirname(__file__)).joinpath("assets").joinpath("client_window.ui")
+            Path(os.path.dirname(__file__))
+            .joinpath("assets")
+            .joinpath("client_window.ui")
         )
 
         if bundled_ui_path.exists():
@@ -92,7 +97,7 @@ class ClientWindow(QMainWindow):
 
         source_icon_path = (
             Path(os.path.dirname(__file__))
-            .parent.joinpath("assets")
+            .parent.parent.joinpath("assets")
             .joinpath("icon.png")
         )
 
@@ -133,7 +138,7 @@ class ClientWindow(QMainWindow):
         server_ipv4_address = (
             self.server_address_input.text()
             if entered_server_address
-            else self.client.client_host_address()
+            else DEFAULT_IPV4_ADDRESS
         )
         server_port = (
             int(self.server_address_input.text())
@@ -164,13 +169,13 @@ class ClientWindow(QMainWindow):
     def on_message_received(self, nickname: str, message: str):
         self.chat_box.append(f"<strong>{nickname}</strong> {message}")
 
-    @pyqtSlot(str, str)
-    def on_join_message_received(self, nickname: str, message: str):
-        self.chat_box.append(f"<em>{nickname} {message}</em>")
+    @pyqtSlot(str)
+    def on_join_message_received(self, nickname: str):
+        self.chat_box.append(f"<em>{nickname} {JOIN_MESSAGE}</em>")
 
-    @pyqtSlot(str, str)
-    def on_leave_message_received(self, nickname: str, message: str):
-        self.chat_box.append(f"<em>{nickname} {message}</em>")
+    @pyqtSlot(str)
+    def on_leave_message_received(self, nickname: str):
+        self.chat_box.append(f"<em>{nickname} {LEAVE_MESSAGE}</em>")
 
     @pyqtSlot()
     def on_disconnected(self):
