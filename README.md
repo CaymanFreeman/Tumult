@@ -37,6 +37,10 @@ You can find appropriate downloads for each release [here](https://github.com/Ca
 
 **Linux Client & Server:** A binary is included in each release.
 
+## Compatibility
+
+Tumult is planned to be compatible with both Windows and Linux before leaving the beta stage.
+
 ## Server Arguments
 
 ### Host
@@ -48,10 +52,6 @@ This is the IP address to listen to and is flagged with `--host`, e.g. `--host 1
 
 ##### Default: 65535
 This is the port to listen to and is flagged with `--port`, e.g. `--port 65535`.
-
-## Compatibility
-
-Tumult is planned to be compatible with both Windows and Linux before leaving the beta stage.
 
 ## Executables & Binaries
 
