@@ -42,12 +42,12 @@ You can find appropriate downloads for each release [here](https://github.com/Ca
 ### Host
 
 ##### Default: 127.0.0.1
-This is the IP address to listen to and is flagged with `--host`. For example, `--host 127.0.0.1`.
+This is the IP address to listen to and is flagged with `--host`, e.g. `--host 127.0.0.1`.
 
 ### Port
 
 ##### Default: 65535
-This is the port to listen to and is flagged with `--port`. For example, `--port 65535`.
+This is the port to listen to and is flagged with `--port`, e.g. `--port 65535`.
 
 ## Compatibility
 
