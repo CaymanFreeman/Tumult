@@ -27,7 +27,7 @@
 
 ## Overview
 
-Tumult is a client-server chatting application meant to demonstrate (and for me to learn) the utility of Python sockets. Tumult is not built to be used in a real environment. The basic functionality is that a client can connect to a running server and send messages to it. Each time a server receives a message from a client, it broadcasts that message to every client, where each client will then render it in the GUI. 
+Tumult is a client-server chatting application designed to demonstrate (and for me to learn) the utility of Python sockets. Tumult is not intended for use in a real environment. The basic functionality allows a client to connect to a running server and send messages. Each time the server receives a message from a client, it broadcasts that message to every connected client, where each client renders it in the GUI.
 
 ## Download
 
