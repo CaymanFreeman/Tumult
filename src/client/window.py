@@ -132,7 +132,7 @@ class ClientWindow(QMainWindow):
             return
 
         entered_server_address = bool(self.server_address_input.text())
-        entered_server_port = bool(self.server_address_input.text())
+        entered_server_port = bool(self.server_port_input.text())
         entered_nickname = bool(self.nickname_input.text())
 
         server_ipv4_address = (
@@ -141,9 +141,7 @@ class ClientWindow(QMainWindow):
             else DEFAULT_IPV4_ADDRESS
         )
         server_port = (
-            int(self.server_address_input.text())
-            if entered_server_port
-            else DEFAULT_PORT
+            int(self.server_port_input.text()) if entered_server_port else DEFAULT_PORT
         )
         nickname = self.nickname_input.text() if entered_nickname else None
 
