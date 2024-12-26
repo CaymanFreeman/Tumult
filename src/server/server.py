@@ -32,16 +32,19 @@ class Message:
 
 class TumultServer:
 
-    def __init__(
-        self, ipv4_address: str = DEFAULT_IPV4_ADDRESS, port: int = DEFAULT_PORT
-    ):
+    def __init__(self, ipv4_address: str, port: int):
         self.ipv4_address: str = ipv4_address
         self.port: int = port
         self.socket: TumultSocket = TumultSocket()
         self.clients: list[TumultClient] = []
         self.message_history: list[Message] = []
 
-        self.socket.bind((ipv4_address, port))
+        try:
+            self.socket.bind((ipv4_address, port))
+        except Exception as error:
+            print(
+                f"[ERROR] An error occurred while binding socket ({ipv4_address}, {port}): {error}"
+            )
 
     @property
     def socket_address(self) -> str:
