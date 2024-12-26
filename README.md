@@ -23,9 +23,11 @@
   <a href="https://www.linkedin.com/in/caymanfreeman/"><img alt="linkedin" src="https://img.shields.io/badge/linkedin-Connect_with_me-%230072b1?style=flat"></a>
 </p>
 
-<h3 align="center">This project is currently in its beginnings and only has basic functionality. As such, the information below may be incomplete/incorrect.</h3>
-  
-<h3 align="center">In the meantime, check out my other project, <a href="https://github.com/CaymanFreeman/Clikr">Clikr</a>.</h3>
+<h3 align="center">This page is currently a work-in-progress and some information may be incomplete/incorrect.</h3>
+
+## Overview
+
+Tumult is a client-server chatting application meant to demonstrate (and for me to learn) the utility of Python sockets. Tumult is not built to be used in a real environment. The basic functionality is that a client can connect to a running server and send messages to it. Each time a server receives a message from a client, it broadcasts that message to every client, where each client will then render it in the GUI. 
 
 ## Download
 
