@@ -1,3 +1,4 @@
+import logging
 import threading
 from typing import Optional
 
@@ -36,22 +37,20 @@ class TumultClient(QObject):
         self.server_ipv4_address = server_ipv4_address
         self.server_port = server_port
         self.nickname = nickname
-
-        print(f"[SYSTEM] Attempting connection with {self.server_socket_address}")
         try:
             self.server_socket.connect((self.server_ipv4_address, self.server_port))
             server_thread = threading.Thread(target=self.handle_server_requests)
             server_thread.start()
-            print(f"[SYSTEM] Connected to server {self.server_socket_address}")
+            logging.info(f"Connected to server {self.server_socket_address}")
             return True
         except TimeoutError:
-            print(f"[ERROR] Connection to server timed out")
+            logging.error(f"Connection to server timed out")
         except ConnectionRefusedError:
-            print(f"[ERROR] Connection to the server was actively refused")
+            logging.error(f"Connection to the server was actively refused")
         except ConnectionResetError:
-            print(f"[ERROR] Connection was forcibly closed by the server")
+            logging.error(f"Connection was forcibly closed by the server")
         except ConnectionError as error:
-            print(f"[ERROR] Connection error occurred: {error}")
+            logging.error(f"Connection error occurred: {error}")
 
         self.disconnected.emit()
         return False
@@ -72,30 +71,27 @@ class TumultClient(QObject):
                     case RequestType.MESSAGE:
                         nickname = request.header.nickname
                         message = request.contents.decode(ENCODING_FORMAT)
-                        print(f"[CHAT] {nickname} says {message}")
                         self.message_received.emit(nickname, message)
 
                     case RequestType.JOIN_MESSAGE:
                         nickname = request.header.nickname
-                        print(f"[CHAT] {nickname} joined")
                         self.join_message_received.emit(nickname)
 
                     case RequestType.LEAVE_MESSAGE:
                         nickname = request.header.nickname
-                        print(f"[CHAT] {nickname} left")
                         self.leave_message_received.emit(nickname)
 
             except TimeoutError:
-                print(f"[ERROR] Connection to server timed out")
+                logging.error(f"Connection to server timed out")
                 handling_server_requests = False
             except ConnectionResetError:
-                print(f"[ERROR] Connection was forcibly closed by the server")
+                logging.error(f"Connection was forcibly closed by the server")
                 handling_server_requests = False
             except ConnectionAbortedError:
-                print(f"[ERROR] Connection to the server was aborted")
+                logging.error(f"Connection to the server was aborted")
                 handling_server_requests = False
             except ConnectionError as error:
-                print(f"[ERROR] Connection error occurred: {error}")
+                logging.error(f"Connection error occurred: {error}")
                 handling_server_requests = False
 
         self.disconnected.emit()

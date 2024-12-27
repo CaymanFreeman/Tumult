@@ -1,10 +1,20 @@
 import argparse
-
+import logging
+from argparse import Namespace
 from src.server.server import TumultServer
+from src.shared.logging import DATETIME_FORMAT, LOG_FORMAT
 from src.shared.protocol import DEFAULT_IPV4_ADDRESS, DEFAULT_PORT
 
 
-def main():
+def setup_logging():
+    logging.basicConfig(
+        level=logging.INFO,
+        format=LOG_FORMAT,
+        datefmt=DATETIME_FORMAT,
+    )
+
+
+def setup_arguments() -> Namespace:
     parser = argparse.ArgumentParser(description="Tumult Chat Server")
     parser.add_argument(
         "--host",
@@ -13,9 +23,14 @@ def main():
         help="Server host IPv4 address",
     )
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Server port")
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    server = TumultServer(args.host, args.port)
+
+def main():
+    setup_logging()
+
+    arguments = setup_arguments()
+    server = TumultServer(arguments.host, arguments.port)
     server.start()
 
 

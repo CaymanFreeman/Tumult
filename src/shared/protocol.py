@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import Optional, Self
 
-VERSION: str = "0.1.0"
+VERSION: str = "0.1.1"
 DEFAULT_IPV4_ADDRESS: str = "127.0.0.1"
 DEFAULT_PORT: int = 65535
 ENCODING_FORMAT: str = "utf-8"

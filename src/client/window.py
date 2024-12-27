@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import sys
@@ -68,7 +69,7 @@ class ClientWindow(QMainWindow):
 
         self.adjustSize()
         self.show()
-        print("[SYSTEM] Successfully loaded UI")
+        logging.info("Successfully loaded UI")
 
     def load_ui(self):
         source_ui_path = (
@@ -145,10 +146,22 @@ class ClientWindow(QMainWindow):
         )
         nickname = self.nickname_input.text() if entered_nickname else None
 
+        if not entered_server_address:
+            logging.info("Using default IPv4 address")
+        if not entered_server_port:
+            logging.info("Using default port")
+        if not entered_nickname:
+            logging.info("No nickname, will ask server for nickname")
+
+        logging.info(f"Validating socket address {server_ipv4_address}:{server_port}")
         if self.validate_socket_address(server_ipv4_address, server_port):
+            logging.info(
+                f"Attempting connection with {server_ipv4_address}:{server_port}"
+            )
             connection_success = self.client.connect(
                 server_ipv4_address, server_port, nickname
             )
+
             if connection_success:
                 self.server_name_label.setText(f"{server_ipv4_address}:{server_port}")
                 self.central_stack.setCurrentIndex(self.chat_page_index)

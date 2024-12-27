@@ -1,3 +1,4 @@
+import logging
 import threading
 from dataclasses import dataclass
 from typing import Optional
@@ -6,8 +7,6 @@ from src.shared.protocol import (
     TumultSocket,
     RequestType,
     ENCODING_FORMAT,
-    DEFAULT_IPV4_ADDRESS,
-    DEFAULT_PORT,
 )
 
 
@@ -42,8 +41,8 @@ class TumultServer:
         try:
             self.socket.bind((ipv4_address, port))
         except Exception as error:
-            print(
-                f"[ERROR] An error occurred while binding socket ({ipv4_address}, {port}): {error}"
+            logging.error(
+                f"An error occurred while binding socket ({ipv4_address}, {port}): {error}"
             )
 
     @property
@@ -72,28 +71,28 @@ class TumultServer:
         return client_ipv4_addresses
 
     def start(self):
-        print(f"[SYSTEM] Listening at {self.socket_address}")
+        logging.info(f"Listening at {self.socket_address}")
         self.socket.listen()
         self.handle_client_connections()
 
     def broadcast_message(self, nickname: str, contents: str):
         message = Message(nickname, contents, RequestType.MESSAGE)
         self.message_history.append(message)
-        print(f"[CHAT] {message.nickname} says {message.contents}")
+        logging.info(f"{message.nickname} says {message.contents}")
         for client_socket in self.client_sockets:
             client_socket.write_message(message.nickname, message.contents)
 
     def broadcast_join_message(self, nickname: str):
         message = Message(nickname, "joined", RequestType.JOIN_MESSAGE)
         self.message_history.append(message)
-        print(f"[CHAT] {nickname} joined")
+        logging.info(f"{nickname} joined")
         for client_socket in self.client_sockets:
             client_socket.write_join_message(nickname)
 
     def broadcast_leave_message(self, nickname: str):
         message = Message(nickname, "left", RequestType.LEAVE_MESSAGE)
         self.message_history.append(message)
-        print(f"[CHAT] {nickname} left")
+        logging.info(f"{nickname} left")
         for client_socket in self.client_sockets:
             client_socket.write_leave_message(nickname)
 
@@ -127,19 +126,19 @@ class TumultServer:
             client.socket.close()
         self.broadcast_leave_message(client.nickname)
 
-        print(f"[SYSTEM] Client list updated to {self.client_ipv4_addresses}")
+        logging.info(f"Client list updated to {self.client_ipv4_addresses}")
 
     def generate_nickname(self, client: TumultClient):
         client.nickname = "User" + str(self.clients.index(client) + 1)
-        print(
-            f"[SYSTEM] Generated nickname {client.nickname} for client {client.socket_address}"
+        logging.info(
+            f"Generated nickname {client.nickname} for client {client.socket_address}"
         )
 
     def handle_client_requests(self, client: TumultClient):
-        print(f"[SYSTEM] Client connected from {client.socket_address}")
+        logging.info(f"Client connected from {client.socket_address}")
         self.clients.append(client)
-        print(f"[SYSTEM] Client list updated to {self.client_ipv4_addresses}")
-        print(f"[SYSTEM] Sending message history to client {client.socket_address}")
+        logging.info(f"Client list updated to {self.client_ipv4_addresses}")
+        logging.info(f"Sending message history to client {client.socket_address}")
         self.send_message_history(client)
 
         self.request_nickname(client)
@@ -162,28 +161,28 @@ class TumultServer:
                         self.broadcast_message(client.nickname, message)
 
             except TimeoutError:
-                print(
-                    f"[SYSTEM] Connection with client {client.socket_address} timed out"
+                logging.info(
+                    f"Connection with client {client.socket_address} timed out"
                 )
                 handling_requests = False
             except ConnectionResetError:
-                print(
-                    f"[SYSTEM] Connection with client {client.socket_address} was forcibly closed by them"
+                logging.info(
+                    f"Connection with client {client.socket_address} was forcibly closed by them"
                 )
                 handling_requests = False
             except ConnectionAbortedError:
-                print(
-                    f"[SYSTEM] Connection with client {client.socket_address} was aborted"
+                logging.info(
+                    f"Connection with client {client.socket_address} was aborted"
                 )
                 handling_requests = False
             except ConnectionError as error:
-                print(
-                    f"[ERROR] Connection with client {client.socket_address} experienced an error: {error}"
+                logging.error(
+                    f"Connection with client {client.socket_address} experienced an error: {error}"
                 )
                 handling_requests = False
             except Exception as error:
-                print(
-                    f"[ERROR] An unknown error occurred with client {client.socket_address}: {error}"
+                logging.error(
+                    f"An unknown error occurred with client {client.socket_address}: {error}"
                 )
                 handling_requests = False
         self.disconnect_client(client)
