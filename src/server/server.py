@@ -198,7 +198,7 @@ class TumultServer:
                     TumultClient(
                         ipv4_address=client_ipv4_address,
                         port=client_port,
-                        socket=TumultSocket.from_socket(client_socket),
+                        socket=TumultSocket(client_socket),
                     )
                 ],
             )

@@ -69,11 +69,11 @@ class TumultClient(QObject):
 
     def connect(self) -> bool:
         try:
-            logging.info(f"Attempting connection with server")
+            logging.info(f"Attempting connection with server {self.server}")
             self.server.connect()
             server_thread = threading.Thread(target=self.handle_server_requests)
             server_thread.start()
-            logging.info(f"Connected to server {self.server}")
+            logging.info(f"Connected to server")
             return True
         except TimeoutError:
             logging.error(f"Connection to server timed out")
