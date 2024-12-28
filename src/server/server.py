@@ -1,7 +1,7 @@
 import logging
 import threading
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Tuple
 
 from src.shared.protocol import (
     TumultSocket,
@@ -17,9 +17,12 @@ class TumultClient:
     socket: TumultSocket
     nickname: Optional[str] = None
 
-    @property
-    def socket_address(self) -> str:
+    def __str__(self):
         return f"{self.ipv4_address}:{self.port}"
+
+    @property
+    def socket_address(self) -> Tuple[str, int]:
+        return self.ipv4_address, self.port
 
 
 @dataclass
@@ -45,9 +48,12 @@ class TumultServer:
                 f"An error occurred while binding socket ({ipv4_address}, {port}): {error}"
             )
 
-    @property
-    def socket_address(self) -> str:
+    def __str__(self):
         return f"{self.ipv4_address}:{self.port}"
+
+    @property
+    def socket_address(self) -> Tuple[str, int]:
+        return self.ipv4_address, self.port
 
     @property
     def client_sockets(self) -> list[TumultSocket]:
@@ -71,7 +77,7 @@ class TumultServer:
         return client_ipv4_addresses
 
     def start(self):
-        logging.info(f"Listening at {self.socket_address}")
+        logging.info(f"Listening at {self}")
         self.socket.listen()
         self.handle_client_connections()
 
@@ -130,15 +136,13 @@ class TumultServer:
 
     def generate_nickname(self, client: TumultClient):
         client.nickname = "User" + str(self.clients.index(client) + 1)
-        logging.info(
-            f"Generated nickname {client.nickname} for client {client.socket_address}"
-        )
+        logging.info(f"Generated nickname {client.nickname} for client {client}")
 
     def handle_client_requests(self, client: TumultClient):
-        logging.info(f"Client connected from {client.socket_address}")
+        logging.info(f"Client connected from {client}")
         self.clients.append(client)
         logging.info(f"Client list updated to {self.client_ipv4_addresses}")
-        logging.info(f"Sending message history to client {client.socket_address}")
+        logging.info(f"Sending message history to client {client}")
         self.send_message_history(client)
 
         self.request_nickname(client)
@@ -161,28 +165,24 @@ class TumultServer:
                         self.broadcast_message(client.nickname, message)
 
             except TimeoutError:
-                logging.info(
-                    f"Connection with client {client.socket_address} timed out"
-                )
+                logging.info(f"Connection with client {client} timed out")
                 handling_requests = False
             except ConnectionResetError:
                 logging.info(
-                    f"Connection with client {client.socket_address} was forcibly closed by them"
+                    f"Connection with client {client} was forcibly closed by them"
                 )
                 handling_requests = False
             except ConnectionAbortedError:
-                logging.info(
-                    f"Connection with client {client.socket_address} was aborted"
-                )
+                logging.info(f"Connection with client {client} was aborted")
                 handling_requests = False
             except ConnectionError as error:
                 logging.error(
-                    f"Connection with client {client.socket_address} experienced an error: {error}"
+                    f"Connection with client {client} experienced an error: {error}"
                 )
                 handling_requests = False
             except Exception as error:
                 logging.error(
-                    f"An unknown error occurred with client {client.socket_address}: {error}"
+                    f"An unknown error occurred with client {client}: {error}"
                 )
                 handling_requests = False
         self.disconnect_client(client)

@@ -20,26 +20,11 @@ from PyQt6.QtWidgets import (
 from src.client.client import TumultClient
 from src.shared.protocol import DEFAULT_PORT, DEFAULT_IPV4_ADDRESS
 
-# IPv4 Regex from Danail Gabenski
-# https://stackoverflow.com/questions/5284147/validating-ipv4-addresses-with-regexp
-IPV4_PATTERN: str = r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$"
-PORT_PATTERN: str = (
-    r"^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$"
-)
-
 JOIN_MESSAGE: str = "has joined the server"
 LEAVE_MESSAGE: str = "has left the server"
 
 
 class ClientWindow(QMainWindow):
-    @classmethod
-    def validate_socket_address(cls, ipv4_address: str, port: int) -> bool:
-        if not bool(re.match(IPV4_PATTERN, ipv4_address)):
-            return False
-        if not bool(re.match(PORT_PATTERN, str(port))):
-            return False
-
-        return True
 
     def __init__(self):
         super(ClientWindow, self).__init__()
@@ -129,7 +114,7 @@ class ClientWindow(QMainWindow):
         self.client.disconnected.connect(self.on_disconnected)
 
     def on_connect_button_clicked(self):
-        if self.client.server_ipv4_address and self.client.server_port:
+        if self.client.server.ipv4_address and self.client.server.port:
             return
 
         entered_server_address = bool(self.server_address_input.text())
@@ -141,30 +126,30 @@ class ClientWindow(QMainWindow):
             if entered_server_address
             else DEFAULT_IPV4_ADDRESS
         )
+        if not entered_server_address:
+            logging.info(f"Using default IPv4 address {DEFAULT_IPV4_ADDRESS}")
+
         server_port = (
             int(self.server_port_input.text()) if entered_server_port else DEFAULT_PORT
         )
-        nickname = self.nickname_input.text() if entered_nickname else None
-
-        if not entered_server_address:
-            logging.info("Using default IPv4 address")
         if not entered_server_port:
-            logging.info("Using default port")
+            logging.info(f"Using default port {DEFAULT_PORT}")
+
+        try:
+            self.client.server.socket_address = server_ipv4_address, server_port
+            logging.info(f"Socket address is valid")
+        except ValueError:
+            logging.error(f"Socket address is invalid")
+            return
+
         if not entered_nickname:
-            logging.info("No nickname, will ask server for nickname")
+            logging.info("Nickname not provided, will ask server for a nickname")
+        self.client.nickname = self.nickname_input.text() if entered_nickname else None
 
-        logging.info(f"Validating socket address {server_ipv4_address}:{server_port}")
-        if self.validate_socket_address(server_ipv4_address, server_port):
-            logging.info(
-                f"Attempting connection with {server_ipv4_address}:{server_port}"
-            )
-            connection_success = self.client.connect(
-                server_ipv4_address, server_port, nickname
-            )
-
-            if connection_success:
-                self.server_name_label.setText(f"{server_ipv4_address}:{server_port}")
-                self.central_stack.setCurrentIndex(self.chat_page_index)
+        connection_success = self.client.connect()
+        if connection_success:
+            self.server_name_label.setText(f"{self.client.server}")
+            self.central_stack.setCurrentIndex(self.chat_page_index)
 
     def on_leave_button_clicked(self):
         self.central_stack.setCurrentIndex(self.connect_page_index)

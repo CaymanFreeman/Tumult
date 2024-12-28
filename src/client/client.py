@@ -1,10 +1,52 @@
 import logging
+import re
 import threading
-from typing import Optional
+from dataclasses import dataclass
+from typing import Optional, Tuple
 
 from PyQt6.QtCore import pyqtSignal, QObject
 
 from src.shared.protocol import TumultSocket, RequestType, ENCODING_FORMAT
+
+# IPv4 Regex from Danail Gabenski
+# https://stackoverflow.com/questions/5284147/validating-ipv4-addresses-with-regexp
+IPV4_PATTERN: str = r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$"
+PORT_PATTERN: str = (
+    r"^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$"
+)
+
+
+@dataclass
+class TumultServer:
+    ipv4_address: Optional[str] = None
+    port: Optional[int] = None
+    socket: TumultSocket = TumultSocket()
+
+    def __str__(self):
+        return f"{self.ipv4_address}:{self.port}"
+
+    @property
+    def socket_address(self) -> Tuple[str, int]:
+        return self.ipv4_address, self.port
+
+    @staticmethod
+    def valid_socket_address(socket_address: Tuple[str, int]) -> bool:
+        ipv4_address, port = socket_address
+        logging.info(f"Validating socket address {ipv4_address}:{port}")
+        if not bool(re.match(IPV4_PATTERN, ipv4_address)) or not bool(
+            re.match(PORT_PATTERN, str(port))
+        ):
+            raise ValueError(socket_address)
+        return True
+
+    @socket_address.setter
+    def socket_address(self, value: Tuple[str, int]):
+        if self.valid_socket_address(value):
+            self.ipv4_address = value[0]
+            self.port = value[1]
+
+    def connect(self):
+        self.socket.connect(self.socket_address)
 
 
 class TumultClient(QObject):
@@ -16,32 +58,22 @@ class TumultClient(QObject):
 
     def __init__(self):
         super().__init__()
-        self.server_ipv4_address: Optional[str] = None
-        self.server_port: Optional[int] = None
         self.nickname: Optional[str] = None
-        self.server_socket: TumultSocket = TumultSocket()
-
-    @property
-    def server_socket_address(self) -> str:
-        return f"{self.server_ipv4_address}:{self.server_port}"
+        self.server: TumultServer = TumultServer()
 
     def send_nickname(self):
-        self.server_socket.write_nickname(self.nickname)
+        self.server.socket.write_nickname(self.nickname)
 
     def send_message(self, message: str):
-        self.server_socket.write_message(self.nickname, message)
+        self.server.socket.write_message(self.nickname, message)
 
-    def connect(
-        self, server_ipv4_address: str, server_port: int, nickname: Optional[str]
-    ) -> bool:
-        self.server_ipv4_address = server_ipv4_address
-        self.server_port = server_port
-        self.nickname = nickname
+    def connect(self) -> bool:
         try:
-            self.server_socket.connect((self.server_ipv4_address, self.server_port))
+            logging.info(f"Attempting connection with server")
+            self.server.connect()
             server_thread = threading.Thread(target=self.handle_server_requests)
             server_thread.start()
-            logging.info(f"Connected to server {self.server_socket_address}")
+            logging.info(f"Connected to server {self.server}")
             return True
         except TimeoutError:
             logging.error(f"Connection to server timed out")
@@ -53,13 +85,14 @@ class TumultClient(QObject):
             logging.error(f"Connection error occurred: {error}")
 
         self.disconnected.emit()
+        logging.error(f"Connection to server {self.server} failed")
         return False
 
     def handle_server_requests(self):
         handling_server_requests = True
         while handling_server_requests:
             try:
-                request = self.server_socket.read_request()
+                request = self.server.socket.read_request()
                 if not request or not request.header:
                     continue
 
@@ -67,6 +100,9 @@ class TumultClient(QObject):
 
                     case RequestType.NICKNAME:
                         self.send_nickname()
+                        logging.info(
+                            f"Server asked for nickname, provided {self.nickname}"
+                        )
 
                     case RequestType.MESSAGE:
                         nickname = request.header.nickname
@@ -97,7 +133,7 @@ class TumultClient(QObject):
         self.disconnected.emit()
 
     def leave_server(self):
-        self.server_ipv4_address = None
-        self.server_port = None
-        self.server_socket.close()
-        self.server_socket = TumultSocket()
+        self.server.ipv4_address = None
+        self.server.port = None
+        self.server.socket.close()
+        self.server.socket = TumultSocket()
