@@ -155,6 +155,9 @@
                <property name="maxLength">
                 <number>10</number>
                </property>
+               <property name="placeholderText">
+                <string>User</string>
+               </property>
               </widget>
              </item>
              <item row="1" column="0">

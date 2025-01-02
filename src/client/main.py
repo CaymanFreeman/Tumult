@@ -1,3 +1,5 @@
+"""Entry point for launching the client application"""
+
 import logging
 import sys
 
@@ -7,7 +9,8 @@ from src.client.window import ClientWindow
 from src.shared.logging import LOG_FORMAT, DATETIME_FORMAT
 
 
-def setup_logging():
+def _setup_logging() -> None:
+    """Configures the logging with the formats from the Tumult logging module."""
     logging.basicConfig(
         level=logging.INFO,
         format=LOG_FORMAT,
@@ -15,11 +18,12 @@ def setup_logging():
     )
 
 
-def main():
-    setup_logging()
+def main() -> None:
+    """Initializes logging and launches the PyQt window."""
+    _setup_logging()
 
-    app = QApplication(sys.argv)
-    window = ClientWindow()
+    app: QApplication = QApplication(sys.argv)
+    _window: ClientWindow = ClientWindow()
     sys.exit(app.exec())
 
 

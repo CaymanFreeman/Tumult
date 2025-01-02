@@ -1,12 +1,14 @@
+"""Provides the PyQt window for the Tumult client."""
+
 import logging
 import os
-import re
 import sys
 from pathlib import Path
+from typing import override, Optional
 
 from PyQt6 import uic
 from PyQt6.QtCore import pyqtSlot
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon, QCloseEvent
 from PyQt6.QtWidgets import (
     QMainWindow,
     QLineEdit,
@@ -17,21 +19,22 @@ from PyQt6.QtWidgets import (
     QLabel,
 )
 
-from src.client.client import TumultClient
-from src.shared.protocol import DEFAULT_PORT, DEFAULT_IPV4_ADDRESS
+from src.client.tumult_client import TumultClient
+from src.shared.protocol import DEFAULT_PORT, DEFAULT_IPV4_ADDRESS, TumultSocket
 
 JOIN_MESSAGE: str = "has joined the server"
 LEAVE_MESSAGE: str = "has left the server"
 
 
 class ClientWindow(QMainWindow):
+    """The PyQt window implementation for the Tumult client."""
 
-    def __init__(self):
-        super(ClientWindow, self).__init__()
+    def __init__(self) -> None:
+        super().__init__()
         self.client = TumultClient()
 
-        self.set_icon()
-        self.load_ui()
+        self._set_icon()
+        self._load_ui()
 
         self.form_container = self.findChild(QWidget, "form_container")
         self.connect_page = self.findChild(QWidget, "connect_page")
@@ -50,13 +53,19 @@ class ClientWindow(QMainWindow):
         self.server_name_label = self.findChild(QLabel, "server_name_label")
         self.central_stack.setCurrentIndex(self.connect_page_index)
 
-        self.connect_callbacks()
+        self._connect_callbacks()
 
         self.adjustSize()
         self.show()
-        logging.info("Successfully loaded UI")
+        logging.debug("Successfully loaded UI")
 
-    def load_ui(self):
+    @override
+    def closeEvent(self, _: Optional[QCloseEvent]) -> None:
+        """Forces the client to leave the current server when the window closes."""
+        self.client.leave_server()
+
+    def _load_ui(self) -> None:
+        """Loads the UI layout from the .ui file in the assets directory."""
         source_ui_path = (
             Path(os.path.dirname(__file__))
             .parent.parent.joinpath("assets")
@@ -77,7 +86,8 @@ class ClientWindow(QMainWindow):
             uic.loadUi(str(bundled_ui_path), self)
             return
 
-    def set_icon(self):
+    def _set_icon(self) -> None:
+        """Sets window icon with the icon PNG in the assets directory if the platform is Windows."""
         if not sys.platform.startswith("win"):
             return
 
@@ -99,21 +109,20 @@ class ClientWindow(QMainWindow):
             self.setWindowIcon(QIcon(str(bundled_icon_path)))
             return
 
-    def closeEvent(self, event):
-        self.client.leave_server()
-
-    def connect_callbacks(self):
-        self.connect_button.clicked.connect(self.on_connect_button_clicked)
-        self.send_button.clicked.connect(self.on_send_message)
-        self.message_box_input.returnPressed.connect(self.on_send_message)
-        self.leave_button.clicked.connect(self.on_leave_button_clicked)
+    def _connect_callbacks(self) -> None:
+        """Connects each UI signal to its corresponding handler."""
+        self.connect_button.clicked.connect(self._on_connect_button_clicked)
+        self.send_button.clicked.connect(self._on_send_message)
+        self.message_box_input.returnPressed.connect(self._on_send_message)
+        self.leave_button.clicked.connect(self._on_leave_button_clicked)
         self.central_stack.currentChanged.connect(self.adjustSize)
-        self.client.message_received.connect(self.on_message_received)
-        self.client.join_message_received.connect(self.on_join_message_received)
-        self.client.leave_message_received.connect(self.on_leave_message_received)
-        self.client.disconnected.connect(self.on_disconnected)
+        self.client.message_received.connect(self._on_message_received)
+        self.client.join_message_received.connect(self._on_join_message_received)
+        self.client.leave_message_received.connect(self._on_leave_message_received)
+        self.client.disconnected.connect(self._on_disconnected)
 
-    def on_connect_button_clicked(self):
+    def _on_connect_button_clicked(self) -> None:
+        """Validates the provided connection information and initiates the server connection."""
         if self.client.server.ipv4_address and self.client.server.port:
             return
 
@@ -127,19 +136,16 @@ class ClientWindow(QMainWindow):
             else DEFAULT_IPV4_ADDRESS
         )
         if not entered_server_address:
-            logging.info(f"Using default IPv4 address {DEFAULT_IPV4_ADDRESS}")
+            logging.info("Using default IPv4 address %s", DEFAULT_IPV4_ADDRESS)
 
         server_port = (
             int(self.server_port_input.text()) if entered_server_port else DEFAULT_PORT
         )
         if not entered_server_port:
-            logging.info(f"Using default port {DEFAULT_PORT}")
+            logging.info("Using default port %s", DEFAULT_PORT)
 
-        try:
-            self.client.server.socket_address = server_ipv4_address, server_port
-            logging.info(f"Socket address is valid")
-        except ValueError:
-            logging.error(f"Socket address is invalid")
+        self.client.server.socket_address = server_ipv4_address, server_port
+        if not TumultSocket.valid_socket_address(self.client.server.socket_address):
             return
 
         if not entered_nickname:
@@ -151,28 +157,34 @@ class ClientWindow(QMainWindow):
             self.server_name_label.setText(f"{self.client.server}")
             self.central_stack.setCurrentIndex(self.chat_page_index)
 
-    def on_leave_button_clicked(self):
+    def _on_leave_button_clicked(self) -> None:
+        """Disconnects from the server and returns to the connection page."""
         self.central_stack.setCurrentIndex(self.connect_page_index)
         self.client.leave_server()
 
-    def on_send_message(self):
+    def _on_send_message(self) -> None:
+        """Sends the text from the message field to the server then clears the field."""
         message = self.message_box_input.text()
         if message:
             self.client.send_message(message)
         self.message_box_input.clear()
 
     @pyqtSlot(str, str)
-    def on_message_received(self, nickname: str, message: str):
+    def _on_message_received(self, nickname: str, message: str) -> None:
+        """Displays the received chat message in chat box with sender's nickname."""
         self.chat_box.append(f"<strong>{nickname}</strong> {message}")
 
     @pyqtSlot(str)
-    def on_join_message_received(self, nickname: str):
+    def _on_join_message_received(self, nickname: str) -> None:
+        """Displays a join message for the user who joined."""
         self.chat_box.append(f"<em>{nickname} {JOIN_MESSAGE}</em>")
 
     @pyqtSlot(str)
-    def on_leave_message_received(self, nickname: str):
+    def _on_leave_message_received(self, nickname: str) -> None:
+        """Displays a leave message for the user who left."""
         self.chat_box.append(f"<em>{nickname} {LEAVE_MESSAGE}</em>")
 
     @pyqtSlot()
-    def on_disconnected(self):
+    def _on_disconnected(self) -> None:
+        """Returns to the connection page."""
         self.central_stack.setCurrentIndex(self.connect_page_index)
